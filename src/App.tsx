@@ -13,6 +13,7 @@ import {
   Leaf,
   Menu,
   MessageCircle,
+  Moon,
   Package,
   Phone,
   Recycle,
@@ -20,6 +21,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Sparkles,
+  Sun,
   Tablet,
   User,
   X,
@@ -67,31 +69,19 @@ const deviceTabs = [
   "Gaming Console",
 ];
 
-const conditionImages: Record<string, string> = {
-  "Excellent": "https://images.unsplash.com/photo-1517336714739-489689fd1ca8?auto=format&fit=crop&w=1000&q=85",
-  "Very Good": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=1000&q=85",
-  "Good": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1000&q=85",
-  "Fair": "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&w=1000&q=85",
-};
-
-function getConditionImage(_category: string, condition: string) {
-  return conditionImages[condition] || conditionImages.Good;
-}
-
-// Reliable category-based fallback images so marketplace cards never appear blank.
-const productFallbackImages: Record<string, string> = {
+const deviceImages: Record<string, string> = {
   Mobile: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=1000&q=85",
   Laptop: "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?auto=format&fit=crop&w=1000&q=85",
   "Desktop Computer": "https://images.unsplash.com/photo-1593642632823-8f785ba67e45?auto=format&fit=crop&w=1000&q=85",
   Tablet: "https://images.unsplash.com/photo-1544244015-0df4b3ffc6b0?auto=format&fit=crop&w=1000&q=85",
   Monitor: "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=1000&q=85",
-  Printer: "https://images.unsplash.com/photo-1612815154858-60aa3a7f1f9f?auto=format&fit=crop&w=1000&q=85",
+  Printer: "https://images.unsplash.com/photo-1612815154858-60aa4c59e4ee?auto=format&fit=crop&w=1000&q=85",
   Camera: "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=1000&q=85",
-  "Gaming Console": "https://images.unsplash.com/photo-1605901309584-818e25960a8f?auto=format&fit=crop&w=1000&q=85",
+  "Gaming Console": "https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?auto=format&fit=crop&w=1000&q=85",
 };
 
-function getProductFallbackImage(category: string) {
-  return productFallbackImages[category] || productFallbackImages.Laptop;
+function getConditionImage(category: string, _condition: string) {
+  return deviceImages[category] || deviceImages.Laptop;
 }
 
 function App() {
@@ -101,12 +91,9 @@ function App() {
   const [selectedProduct, setSelectedProduct] =
     useState<Product | null>(null);
 
-  // Keep newly listed products available in the marketplace so their
-  // exact image and information also appear when "View product" is opened.
-  const [marketplaceProducts, setMarketplaceProducts] = useState<Product[]>(products);
-
   const [modal, setModal] = useState<ModalType>(null);
 
+  const [darkMode, setDarkMode] = useState(true);
 
   const [searchText, setSearchText] = useState("");
 
@@ -179,7 +166,7 @@ function App() {
   }, [adminLoggedIn]);
 
   const filteredProducts = useMemo(() => {
-    return marketplaceProducts.filter((product) => {
+    return products.filter((product) => {
       const matchesCategory =
         activeTab === "All" ||
         product.category.toLowerCase() === activeTab.toLowerCase();
@@ -194,7 +181,7 @@ function App() {
 
       return matchesCategory && matchesSearch;
     });
-  }, [activeTab, searchText, marketplaceProducts]);
+  }, [activeTab, searchText]);
 
   const scrollTo = (id: string) => {
     setMobileMenu(false);
@@ -378,7 +365,6 @@ function App() {
     };
 
     addProduct(newProduct);
-    setMarketplaceProducts((prev) => [newProduct, ...prev]);
 
     makeSubmission(
       "SL",
@@ -424,7 +410,7 @@ function App() {
   };
 
   return (
-    <div className="app dark">
+    <div className={darkMode ? "app dark" : "app light"}>
 
       {/* ================= NAVBAR ================= */}
 
@@ -499,6 +485,18 @@ function App() {
             >
               <Bell size={19} />
               <span className="notificationDot" />
+            </button>
+
+            <button
+              className="iconButton"
+              title="Theme"
+              onClick={() => setDarkMode(!darkMode)}
+            >
+              {darkMode ? (
+                <Sun size={19} />
+              ) : (
+                <Moon size={19} />
+              )}
             </button>
 
             <button
@@ -660,9 +658,11 @@ function App() {
               style={{
                 animation: "none",
                 position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
+                inset: "3%",
+                width: "94%",
+                height: "94%",
+                left: "3%",
+                top: "3%",
                 margin: 0,
                 transform: "none",
                 transformOrigin: "center center",
@@ -728,6 +728,8 @@ function App() {
 
 
             </div>
+
+
 
 
           </div>
@@ -851,15 +853,12 @@ function App() {
                 <div className="productImage">
 
                   <img
-                    src={product.image || getProductFallbackImage(product.category)}
+                    src={product.image || getConditionImage(product.category, product.condition)}
                     alt={product.name}
-                    loading="lazy"
                     onError={(event) => {
                       const image = event.currentTarget;
-                      const fallback = getProductFallbackImage(product.category);
-                      if (image.src !== fallback) {
-                        image.src = fallback;
-                      }
+                      const fallback = getConditionImage(product.category, product.condition);
+                      if (image.src !== fallback) image.src = fallback;
                     }}
                   />
 
@@ -1890,14 +1889,12 @@ function App() {
             <div className="modalProductImage">
 
               <img
-                src={selectedProduct.image || getProductFallbackImage(selectedProduct.category)}
+                src={selectedProduct.image || getConditionImage(selectedProduct.category, selectedProduct.condition)}
                 alt={selectedProduct.name}
                 onError={(event) => {
                   const image = event.currentTarget;
-                  const fallback = getProductFallbackImage(selectedProduct.category);
-                  if (image.src !== fallback) {
-                    image.src = fallback;
-                  }
+                  const fallback = getConditionImage(selectedProduct.category, selectedProduct.condition);
+                  if (image.src !== fallback) image.src = fallback;
                 }}
               />
 
@@ -2022,15 +2019,6 @@ function App() {
                   <ArrowRight size={17} />
                 </button>
 
-                <button
-                  className="secondaryButton"
-                  onClick={() =>
-                    notify("Message request sent.")
-                  }
-                >
-                  <MessageCircle size={17} />
-                  Message seller
-                </button>
 
               </div>
 
@@ -2095,8 +2083,6 @@ function App() {
                   />
 
                   <button
-                    type="button"
-                    className="searchSubmitButton"
                     onClick={() => {
                       closeModal();
                       scrollTo("explore");
@@ -2106,30 +2092,6 @@ function App() {
                   </button>
 
                 </div>
-
-                <style>{`
-                  .searchSubmitButton {
-                    appearance: none;
-                    border: 1px solid rgba(168, 85, 247, 0.55);
-                    background: linear-gradient(135deg, #9b51e0, #7c3aed);
-                    color: #ffffff;
-                    border-radius: 10px;
-                    padding: 10px 18px;
-                    font: inherit;
-                    font-weight: 700;
-                    cursor: pointer;
-                    box-shadow: 0 8px 22px rgba(124, 58, 237, 0.22);
-                    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
-                  }
-                  .searchSubmitButton:hover {
-                    transform: translateY(-1px);
-                    filter: brightness(1.08);
-                    box-shadow: 0 10px 26px rgba(124, 58, 237, 0.32);
-                  }
-                  .searchSubmitButton:active {
-                    transform: translateY(0);
-                  }
-                `}</style>
 
                 <div className="searchSuggestions">
 
@@ -2978,7 +2940,7 @@ function App() {
                       closeModal();
                       setTimeout(() => scrollTo("dashboard"), 120);
                     } else {
-                      notify("Invalid admin name or password.");
+                      notify("Invalid admin name or password. Use admin / admin123 for the demo.");
                     }
                   }}
                 >
@@ -2992,7 +2954,7 @@ function App() {
                   </h2>
 
                   <p className="formIntro">
-                    Authorized administrators only. Enter your administrator credentials to continue.
+                    Authorized administrators only. Demo credentials: <strong>admin</strong> / <strong>admin123</strong>
                   </p>
 
                   <FormField
