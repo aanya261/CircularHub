@@ -13,7 +13,6 @@ import {
   Leaf,
   Menu,
   MessageCircle,
-  Moon,
   Package,
   Phone,
   Recycle,
@@ -21,7 +20,6 @@ import {
   ShieldCheck,
   ShoppingBag,
   Sparkles,
-  Sun,
   Tablet,
   User,
   X,
@@ -92,8 +90,6 @@ function App() {
     useState<Product | null>(null);
 
   const [modal, setModal] = useState<ModalType>(null);
-
-  const [darkMode, setDarkMode] = useState(true);
 
   const [searchText, setSearchText] = useState("");
 
@@ -410,7 +406,7 @@ function App() {
   };
 
   return (
-    <div className={darkMode ? "app dark" : "app light"}>
+    <div className="app dark">
 
       {/* ================= NAVBAR ================= */}
 
@@ -485,18 +481,6 @@ function App() {
             >
               <Bell size={19} />
               <span className="notificationDot" />
-            </button>
-
-            <button
-              className="iconButton"
-              title="Theme"
-              onClick={() => setDarkMode(!darkMode)}
-            >
-              {darkMode ? (
-                <Sun size={19} />
-              ) : (
-                <Moon size={19} />
-              )}
             </button>
 
             <button
@@ -1987,9 +1971,10 @@ function App() {
               <div className="sellerBox">
 
                 <div className="sellerAvatar">
-                  {selectedProduct.seller
-                    .slice(0, 2)
-                    .toUpperCase()}
+                  {(selectedProduct.name.toLowerCase().includes("dell")
+                    ? "Priya Goswami"
+                    : selectedProduct.seller
+                  ).slice(0, 2).toUpperCase()}
                 </div>
 
                 <div>
@@ -1999,7 +1984,9 @@ function App() {
                   </span>
 
                   <strong>
-                    {selectedProduct.seller}
+                    {selectedProduct.name.toLowerCase().includes("dell")
+                      ? "Priya Goswami"
+                      : selectedProduct.seller}
                   </strong>
 
                 </div>
