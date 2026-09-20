@@ -134,10 +134,22 @@ function App() {
   const [sellPhotoNames, setSellPhotoNames] = useState<string[]>([]);
 
   const [adminLoggedIn, setAdminLoggedIn] = useState(false);
+  const [adminSigningIn, setAdminSigningIn] = useState(false);
   const [adminToken, setAdminToken] = useState(() => sessionStorage.getItem("circularhub_admin_token") || "");
   const [approvedListings, setApprovedListings] = useState<Product[]>([]);
   const [pendingListings, setPendingListings] = useState<any[]>([]);
   const [backendActivities, setBackendActivities] = useState<ActivityRecord[]>([]);
+
+  // Warm the Vercel admin function in the background so the first real
+  // sign-in is not delayed by a serverless cold start. This never blocks UI.
+  useEffect(() => {
+    void fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "", password: "" }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }, []);
 
   const [submission, setSubmission] = useState<{
     trackingId: string;
@@ -282,7 +294,16 @@ function App() {
   // Dashboard is protected: every visit starts a fresh admin login.
   const openAdminLogin = () => {
     setAdminLoggedIn(false);
+    setAdminSigningIn(false);
     setModal("admin");
+
+    // Warm again when the admin panel is opened.
+    void fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "", password: "" }),
+      keepalive: true,
+    }).catch(() => undefined);
   };
 
   const makeSubmission = async (
@@ -585,14 +606,14 @@ function App() {
 
             <button
               className="avatar"
-              onClick={() => { setAdminLoggedIn(false); setModal("admin"); }}
+              onClick={openAdminLogin}
             >
               AR
             </button>
 
             <button
               className="profileName"
-              onClick={() => { setAdminLoggedIn(false); setModal("admin"); }}
+              onClick={openAdminLogin}
             >
               Aanya
             </button>
@@ -1931,7 +1952,7 @@ function App() {
             Impact
           </button>
 
-          <button onClick={() => setModal("admin")}>
+          <button onClick={openAdminLogin}>
             Admin
           </button>
 
@@ -3039,12 +3060,14 @@ function App() {
                   }}
                   onClose={() => {
                     setAdminLoggedIn(false);
+                    setAdminSigningIn(false);
                     closeModal();
                   }}
                   onLogout={() => {
                     sessionStorage.removeItem("circularhub_admin_token");
                     setAdminToken("");
                     setAdminLoggedIn(false);
+                    setAdminSigningIn(false);
                     closeModal();
                   }}
                 />
@@ -3054,9 +3077,13 @@ function App() {
                 <form
                   onSubmit={async (event) => {
                     event.preventDefault();
+                    if (adminSigningIn) return;
+
                     const form = new FormData(event.currentTarget);
                     const adminName = String(form.get("adminName") || "").trim();
                     const password = String(form.get("password") || "");
+
+                    setAdminSigningIn(true);
 
                     try {
                       const result = await adminLogin(adminName, password);
@@ -3064,11 +3091,10 @@ function App() {
                       setAdminToken(result.token);
                       setAdminLoggedIn(true);
                       notify("Admin login successful. Dashboard unlocked.");
-                      // Keep the admin modal open so the full Admin Dashboard
-                      // with pending listing approvals is displayed immediately.
-                      // Do not call closeModal() here.
                     } catch (error) {
                       notify(error instanceof Error ? error.message : "Invalid administrator credentials.");
+                    } finally {
+                      setAdminSigningIn(false);
                     }
                   }}
                 >
@@ -3105,9 +3131,11 @@ function App() {
                   <button
                     className="primaryButton full"
                     type="submit"
+                    disabled={adminSigningIn}
+                    aria-busy={adminSigningIn}
                   >
-                    Sign In
-                    <ShieldCheck size={18} />
+                    {adminSigningIn ? "Signing in…" : "Sign In"}
+                    {adminSigningIn ? <RotateCw size={18} style={{ animation: "spin 0.8s linear infinite" }} /> : <ShieldCheck size={18} />}
                   </button>
 
                 </form>
