@@ -485,6 +485,7 @@ function App() {
         "Your product listing has been submitted successfully and is waiting for admin approval before it appears in the marketplace.",
         [
           ["Seller / User Name", seller],
+          ["Phone Number", String(form.get("phone") || "")],
           ["Product Name", name],
           ["Brand", String(form.get("brand") || "")],
           ["Device Type", category],
@@ -2391,6 +2392,20 @@ function App() {
                   />
 
                   <FormField
+                    label="Phone Number"
+                    name="phone"
+                    type="tel"
+                    placeholder="9876543210"
+                    autoComplete="tel"
+                    required
+                    pattern="[0-9]{10}"
+                    maxLength={10}
+                    prefix="+91"
+                    inputMode="numeric"
+                    digitsOnly
+                  />
+
+                  <FormField
                     label="Brand"
                     name="brand"
                     placeholder="e.g. Dell"
@@ -3184,6 +3199,11 @@ function FormField({
   min,
   max,
   step,
+  pattern,
+  maxLength,
+  prefix,
+  inputMode,
+  digitsOnly = false,
 }: {
   label: string;
   name: string;
@@ -3194,6 +3214,11 @@ function FormField({
   min?: string | number;
   max?: string | number;
   step?: string | number;
+  pattern?: string;
+  maxLength?: number;
+  prefix?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  digitsOnly?: boolean;
 }) {
   return (
     <label className="field">
@@ -3202,20 +3227,75 @@ function FormField({
         {label}
       </span>
 
-      <input
-        name={name}
-        type={type}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        required={required}
-        min={min}
-        max={max}
-        step={step}
-        onClick={(event) => {
-          const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
-          if (type === "time" || type === "date") input.showPicker?.();
-        }}
-      />
+      {prefix ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: "14px",
+            overflow: "hidden",
+            background: "rgba(255,255,255,0.025)",
+          }}
+        >
+          <span
+            style={{
+              padding: "0 12px",
+              color: "rgba(255,255,255,0.72)",
+              fontWeight: 600,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {prefix}
+          </span>
+          <input
+            name={name}
+            type={type}
+            placeholder={placeholder}
+            autoComplete={autoComplete}
+            required={required}
+            min={min}
+            max={max}
+            step={step}
+            pattern={pattern}
+            maxLength={maxLength}
+            inputMode={inputMode}
+            style={{ border: 0, borderRadius: 0, flex: 1 }}
+            onInput={(event) => {
+              if (digitsOnly) {
+                event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, maxLength);
+              }
+            }}
+            onClick={(event) => {
+              const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
+              if (type === "time" || type === "date") input.showPicker?.();
+            }}
+          />
+        </div>
+      ) : (
+        <input
+          name={name}
+          type={type}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          required={required}
+          min={min}
+          max={max}
+          step={step}
+          pattern={pattern}
+          maxLength={maxLength}
+          inputMode={inputMode}
+          onInput={(event) => {
+            if (digitsOnly) {
+              event.currentTarget.value = event.currentTarget.value.replace(/\D/g, "").slice(0, maxLength);
+            }
+          }}
+          onClick={(event) => {
+            const input = event.currentTarget as HTMLInputElement & { showPicker?: () => void };
+            if (type === "time" || type === "date") input.showPicker?.();
+          }}
+        />
+      )}
 
     </label>
   );
