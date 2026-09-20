@@ -3,5 +3,7 @@ dist/
 *.tsbuildinfo
 .env
 .env.local
+.vercel/
 .vscode/
 .DS_Store
+.vercel

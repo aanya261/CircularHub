@@ -31,6 +31,15 @@ import {
 import { products, partners } from "./data";
 import { useStore } from "./store";
 import type { Product } from "./types";
+import {
+  adminLogin,
+  fetchAdminActivities,
+  fetchApprovedListings,
+  fetchPendingListings,
+  reviewListing,
+  submitActivity,
+  submitListing,
+} from "./backend";
 
 type ModalType =
   | "buy"
@@ -82,8 +91,35 @@ function getConditionImage(category: string, _condition: string) {
   return deviceImages[category] || deviceImages.Laptop;
 }
 
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Unable to read the selected image."));
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const maxSize = 1200;
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.width * scale));
+        canvas.height = Math.max(1, Math.round(image.height * scale));
+        const context = canvas.getContext("2d");
+        if (!context) {
+          resolve(String(reader.result || ""));
+          return;
+        }
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.76));
+      };
+      image.onerror = () => reject(new Error("Unable to process the selected image."));
+      image.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function App() {
-  const { saved, toggleSaved, addProduct, notify } = useStore();
+  const { saved, toggleSaved, notify } = useStore();
 
   const [activeTab, setActiveTab] = useState("All");
   const [selectedProduct, setSelectedProduct] =
@@ -98,6 +134,10 @@ function App() {
   const [sellPhotoNames, setSellPhotoNames] = useState<string[]>([]);
 
   const [adminLoggedIn, setAdminLoggedIn] = useState(false);
+  const [adminToken, setAdminToken] = useState(() => sessionStorage.getItem("circularhub_admin_token") || "");
+  const [approvedListings, setApprovedListings] = useState<Product[]>([]);
+  const [pendingListings, setPendingListings] = useState<any[]>([]);
+  const [backendActivities, setBackendActivities] = useState<ActivityRecord[]>([]);
 
   const [submission, setSubmission] = useState<{
     trackingId: string;
@@ -136,10 +176,45 @@ function App() {
     localStorage.setItem("circularhub_notifications", JSON.stringify(notifications));
   }, [notifications]);
 
+  // Keep notifications in sync if the user and admin are open in different tabs.
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== "circularhub_notifications" || !event.newValue) return;
+      try {
+        const next = JSON.parse(event.newValue);
+        if (Array.isArray(next)) setNotifications(next);
+      } catch {
+        // Ignore malformed local storage values.
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
   const addNotification = (message: string) => {
     setNotifications((prev: string[]) => [message, ...prev].slice(0, 12));
     notify(message);
   };
+
+  useEffect(() => {
+    if (!adminLoggedIn || !adminToken) return;
+    Promise.all([fetchPendingListings(adminToken), fetchAdminActivities(adminToken)])
+      .then(([listings, backendHistory]) => {
+        setPendingListings(listings);
+        setBackendActivities(backendHistory.map((item) => ({
+          trackingId: item.trackingId,
+          type: item.type,
+          title: item.title,
+          description: item.description,
+          timestamp: item.timestamp,
+          status: item.status,
+        })));
+      })
+      .catch(() => {
+        notify("Unable to load backend data. Check your database connection.");
+      });
+  }, [adminLoggedIn, adminToken]);
 
   useEffect(() => {
     const targets = document.querySelectorAll<HTMLElement>(
@@ -161,8 +236,18 @@ function App() {
     return () => observer.disconnect();
   }, [adminLoggedIn]);
 
+  const marketplaceProducts = useMemo(() => [...approvedListings, ...products], [approvedListings]);
+
+  useEffect(() => {
+    fetchApprovedListings()
+      .then(setApprovedListings)
+      .catch(() => {
+        // The static demo catalogue remains available if the database is not configured yet.
+      });
+  }, []);
+
   const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
+    return marketplaceProducts.filter((product) => {
       const matchesCategory =
         activeTab === "All" ||
         product.category.toLowerCase() === activeTab.toLowerCase();
@@ -177,7 +262,7 @@ function App() {
 
       return matchesCategory && matchesSearch;
     });
-  }, [activeTab, searchText]);
+  }, [activeTab, searchText, marketplaceProducts]);
 
   const scrollTo = (id: string) => {
     setMobileMenu(false);
@@ -200,7 +285,7 @@ function App() {
     setModal("admin");
   };
 
-  const makeSubmission = (
+  const makeSubmission = async (
     prefix: string,
     title: string,
     message: string,
@@ -240,6 +325,17 @@ function App() {
       ...prev,
     ].slice(0, 12));
     setModal(null);
+    void submitActivity({
+      trackingId,
+      type,
+      title,
+      description: `${firstValue} · ${type.toLowerCase()} request submitted`,
+      fields,
+      amount: amount || 0,
+      status: type === "Order" || type === "Repair" ? "Processing" : "Submitted",
+    }).catch(() => {
+      // Local activity history still works if the backend is temporarily unavailable.
+    });
     notify(`${type} submitted successfully. Tracking ID: ${trackingId}`);
   };
 
@@ -333,57 +429,61 @@ function App() {
     );
   };
 
-  const handleSell = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSell = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const form = new FormData(event.currentTarget);
     const name = String(form.get("name") || "My Circular Product");
     const price = Number(form.get("price") || 0);
+    const category = String(form.get("category") || "Mobile");
+    const condition = String(form.get("condition") || "Good");
+    const seller = String(form.get("sellerName") || "CircularHub User");
+    const description = String(form.get("description") || "CircularHub marketplace listing.");
+    const image = sellPhotoPreview || getConditionImage(category, condition);
 
-    const newProduct: Product = {
-      id: Date.now(),
-      name,
-      category: String(form.get("category") || "Mobile"),
-      brand: String(form.get("brand") || "Other"),
-      price,
-      originalPrice: Number(form.get("originalPrice") || price),
-      condition: String(form.get("condition") || "Good"),
-      age: String(form.get("age") || "1 year"),
-      city: String(form.get("city") || "Mumbai"),
-      seller: String(form.get("sellerName") || "CircularHub User"),
-      score: 86,
-      image:
-        sellPhotoPreview || getConditionImage(
-          String(form.get("category") || "Laptop"),
-          String(form.get("condition") || "Good")
-        ),
-      description: String(form.get("description") || "CircularHub marketplace listing."),
-    };
+    try {
+      await submitListing({
+        name,
+        category,
+        brand: String(form.get("brand") || "Other"),
+        price,
+        originalPrice: Number(form.get("originalPrice") || price),
+        condition,
+        age: String(form.get("age") || "1 year"),
+        city: String(form.get("city") || "Mumbai"),
+        seller,
+        score: 86,
+        image,
+        images: image ? [image] : [],
+        description,
+      });
 
-    addProduct(newProduct);
+      await makeSubmission(
+        "SL",
+        "Listing submitted",
+        "Your product listing has been submitted successfully and is waiting for admin approval before it appears in the marketplace.",
+        [
+          ["Seller / User Name", seller],
+          ["Product Name", name],
+          ["Brand", String(form.get("brand") || "")],
+          ["Device Type", category],
+          ["Condition", condition],
+          ["Product Age", String(form.get("age") || "")],
+          ["Original Price", `₹${Number(form.get("originalPrice") || 0).toLocaleString("en-IN")}`],
+          ["Expected Price", `₹${price.toLocaleString("en-IN")}`],
+          ["City", String(form.get("city") || "")],
+          ["Product Description", description],
+        ],
+        price,
+      );
 
-    makeSubmission(
-      "SL",
-      "Listing submitted",
-      "Your product listing has been submitted successfully and is now part of your CircularHub activity.",
-      [
-        ["Seller / User Name", String(form.get("sellerName") || "")],
-        ["Product Name", name],
-        ["Brand", String(form.get("brand") || "")],
-        ["Device Type", String(form.get("category") || "")],
-        ["Condition", String(form.get("condition") || "")],
-        ["Product Age", String(form.get("age") || "")],
-        ["Original Price", `₹${Number(form.get("originalPrice") || 0).toLocaleString("en-IN")}`],
-        ["Expected Price", `₹${price.toLocaleString("en-IN")}`],
-        ["City", String(form.get("city") || "")],
-        ["Product Description", String(form.get("description") || "")],
-      ],
-      price,
-    );
-
-    event.currentTarget.reset();
-    setSellPhotoPreview("");
-    setSellPhotoNames([]);
+      event.currentTarget.reset();
+      setSellPhotoPreview("");
+      setSellPhotoNames([]);
+      addNotification("Your listing was sent to the admin for approval. It will appear in Explore after approval.");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Unable to submit the listing right now.");
+    }
   };
 
   const formatActivityTime = (timestamp: number) => {
@@ -2375,9 +2475,9 @@ function App() {
                         if (!files.length) return;
                         setSellPhotoNames(files.map(file => file.name));
                         const first = files[0];
-                        const reader = new FileReader();
-                        reader.onload = () => setSellPhotoPreview(String(reader.result || ""));
-                        reader.readAsDataURL(first);
+                        compressImage(first)
+                          .then(setSellPhotoPreview)
+                          .catch((error) => notify(error instanceof Error ? error.message : "Unable to process the selected image."));
                       }}
                     />
                   </label>
@@ -2901,12 +3001,49 @@ function App() {
               adminLoggedIn ? (
 
                 <AdminDashboard
-                  activities={activities}
+                  activities={[...backendActivities, ...activities].slice(0, 100)}
+                  pendingListings={pendingListings}
+                  onApprove={async (id, listing) => {
+                    try {
+                      await reviewListing(adminToken, id, "approved");
+                      const approved = await fetchApprovedListings();
+                      setApprovedListings(approved);
+                      setActivities((prev) => prev.map((activity) =>
+                        activity.type === "Sell" && activity.description.toLowerCase().startsWith(`${String(listing.name || "").toLowerCase()} ·`)
+                          ? { ...activity, status: "Approved" }
+                          : activity
+                      ));
+                      addNotification(`Your listing "${listing.name}" has been approved and is now visible in the marketplace.`);
+                      notify("Listing approved and added to the marketplace.");
+                      return true;
+                    } catch (error) {
+                      notify(error instanceof Error ? error.message : "Unable to approve listing.");
+                      return false;
+                    }
+                  }}
+                  onReject={async (id, listing) => {
+                    try {
+                      await reviewListing(adminToken, id, "rejected");
+                      setActivities((prev) => prev.map((activity) =>
+                        activity.type === "Sell" && activity.description.toLowerCase().startsWith(`${String(listing.name || "").toLowerCase()} ·`)
+                          ? { ...activity, status: "Rejected" }
+                          : activity
+                      ));
+                      addNotification(`Your listing "${listing.name}" was rejected by the administrator.`);
+                      notify("Listing rejected.");
+                      return true;
+                    } catch (error) {
+                      notify(error instanceof Error ? error.message : "Unable to reject listing.");
+                      return false;
+                    }
+                  }}
                   onClose={() => {
                     setAdminLoggedIn(false);
                     closeModal();
                   }}
                   onLogout={() => {
+                    sessionStorage.removeItem("circularhub_admin_token");
+                    setAdminToken("");
                     setAdminLoggedIn(false);
                     closeModal();
                   }}
@@ -2915,19 +3052,23 @@ function App() {
               ) : (
 
                 <form
-                  onSubmit={(event) => {
+                  onSubmit={async (event) => {
                     event.preventDefault();
                     const form = new FormData(event.currentTarget);
                     const adminName = String(form.get("adminName") || "").trim();
                     const password = String(form.get("password") || "");
 
-                    if (adminName === "admin" && password === "admin123") {
+                    try {
+                      const result = await adminLogin(adminName, password);
+                      sessionStorage.setItem("circularhub_admin_token", result.token);
+                      setAdminToken(result.token);
                       setAdminLoggedIn(true);
                       notify("Admin login successful. Dashboard unlocked.");
-                      closeModal();
-                      setTimeout(() => scrollTo("dashboard"), 120);
-                    } else {
-                      notify("Invalid admin name or password. Use admin / admin123 for the demo.");
+                      // Keep the admin modal open so the full Admin Dashboard
+                      // with pending listing approvals is displayed immediately.
+                      // Do not call closeModal() here.
+                    } catch (error) {
+                      notify(error instanceof Error ? error.message : "Invalid administrator credentials.");
                     }
                   }}
                 >
@@ -2941,7 +3082,7 @@ function App() {
                   </h2>
 
                   <p className="formIntro">
-                    Authorized administrators only. Demo credentials: <strong>admin</strong> / <strong>admin123</strong>
+                    Authorized administrators only.
                   </p>
 
                   <FormField
@@ -3470,13 +3611,39 @@ function NotificationsModal({
 
 function AdminDashboard({
   activities,
+  pendingListings,
+  onApprove,
+  onReject,
   onClose,
   onLogout,
 }: {
   activities: ActivityRecord[];
+  pendingListings: Array<any>;
+  onApprove: (id: string, listing: any) => Promise<boolean>;
+  onReject: (id: string, listing: any) => Promise<boolean>;
   onClose: () => void;
   onLogout: () => void;
 }) {
+  const [decisions, setDecisions] = useState<Record<string, "approved" | "rejected">>({});
+
+  const approve = async (listing: any) => {
+    const id = String(listing.id);
+    if (decisions[id]) return;
+    const success = await onApprove(id, listing);
+    if (success) {
+      setDecisions((prev) => ({ ...prev, [id]: "approved" }));
+    }
+  };
+
+  const reject = async (listing: any) => {
+    const id = String(listing.id);
+    if (decisions[id]) return;
+    const success = await onReject(id, listing);
+    if (success) {
+      setDecisions((prev) => ({ ...prev, [id]: "rejected" }));
+    }
+  };
+
   return (
     <div>
       <div className="adminHeader">
@@ -3492,6 +3659,98 @@ function AdminDashboard({
         <div><span>LISTINGS</span><strong>428</strong></div>
         <div><span>REPAIRS</span><strong>196</strong></div>
         <div><span>ACTIVITIES</span><strong>{activities.length}</strong></div>
+      </div>
+
+      <div className="adminReviewPanel">
+        <div className="modalEyebrow">LISTING APPROVALS</div>
+        <h3>Pending user listings</h3>
+        <p className="formIntro">
+          User-submitted products are stored in the backend first. They appear in the marketplace only after an administrator approves them.
+        </p>
+
+        {pendingListings.length ? (
+          <div className="adminPendingList">
+            {pendingListings.map((listing) => {
+              const id = String(listing.id);
+              const decision = decisions[id];
+              const isApproved = decision === "approved";
+              const isRejected = decision === "rejected";
+
+              return (
+                <div className="adminPendingCard" key={id}>
+                  <div className="adminPendingImage">
+                    <img
+                      src={listing.image || getConditionImage(listing.category, listing.condition)}
+                      alt={listing.name}
+                    />
+                  </div>
+
+                  <div className="adminPendingInfo">
+                    <strong>{listing.name}</strong>
+                    <span>{listing.brand} · {listing.category} · {listing.condition}</span>
+                    <span>{listing.seller} · {listing.city}</span>
+                    <b>₹{Number(listing.price || 0).toLocaleString("en-IN")}</b>
+                    {decision && (
+                      <span style={{
+                        display: "inline-flex",
+                        width: "fit-content",
+                        marginTop: 6,
+                        padding: "5px 9px",
+                        borderRadius: 999,
+                        border: `1px solid ${isApproved ? "rgba(52,211,153,.35)" : "rgba(248,113,113,.35)"}`,
+                        background: isApproved ? "rgba(16,185,129,.10)" : "rgba(239,68,68,.10)",
+                        color: isApproved ? "#6ee7b7" : "#fca5a5",
+                        fontSize: 10,
+                        fontWeight: 800,
+                        letterSpacing: ".04em",
+                      }}>
+                        {isApproved ? "APPROVED" : "REJECTED"}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="adminPendingActions">
+                    <button
+                      type="button"
+                      className="primaryButton"
+                      disabled={Boolean(decision)}
+                      onClick={() => void approve(listing)}
+                      style={isApproved ? {
+                        background: "linear-gradient(135deg, #22c55e, #10b981)",
+                        borderColor: "rgba(110,231,183,.55)",
+                        boxShadow: "0 0 0 2px rgba(52,211,153,.18), 0 10px 28px rgba(16,185,129,.25)",
+                        color: "#fff",
+                      } : undefined}
+                    >
+                      {isApproved ? "Approved ✓" : "Approve"}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="secondaryButton"
+                      disabled={Boolean(decision)}
+                      onClick={() => void reject(listing)}
+                      style={isRejected ? {
+                        background: "rgba(239,68,68,.16)",
+                        borderColor: "rgba(248,113,113,.55)",
+                        boxShadow: "0 0 0 2px rgba(248,113,113,.14), 0 10px 28px rgba(239,68,68,.16)",
+                        color: "#fca5a5",
+                      } : undefined}
+                    >
+                      {isRejected ? "Rejected ✕" : "Reject"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="trackEmpty">
+            <Check size={25} />
+            <strong>No pending listings</strong>
+            <span>New user listings will appear here for review.</span>
+          </div>
+        )}
       </div>
 
       <div className="adminTable">
@@ -3512,7 +3771,9 @@ function AdminDashboard({
 
       <div style={{marginTop:24,padding:18,border:"1px solid rgba(192,132,252,.2)",borderRadius:16,background:"rgba(168,85,247,.05)"}}>
         <div className="modalEyebrow">ALL USER ACTIVITY</div>
-        <p style={{color:"var(--muted)",fontSize:12,marginTop:7}}>Admin access only. Every submitted sell, swap, order, repair, donation and recycle request is listed here with its single Tracking ID.</p>
+        <p style={{color:"var(--muted)",fontSize:12,marginTop:7}}>
+          Admin access only. Every submitted sell, swap, order, repair, donation and recycle request is listed here with its single Tracking ID.
+        </p>
       </div>
 
       <button className="secondaryButton" onClick={onClose} style={{marginTop:18}}>Close dashboard</button>

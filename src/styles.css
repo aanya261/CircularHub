@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 /* =========================================================
    CIRCULARHUB — MATCHED TO THE CURRENT App.tsx
    Premium purple / violet UI
-   Dark + light mode
+   Dark purple mode
    ========================================================= */
 
 :root{
@@ -1831,3 +1831,234 @@ p{line-height:1.7}
 .sectionHeader p,.finalCTA p,.heroText{transition:opacity .65s ease,transform .65s ease;}
 .section:not(.in-view) .sectionHeader p,.finalCTA:not(.in-view) p{opacity:0;transform:translateY(10px);}
 .section.in-view .sectionHeader p,.finalCTA.in-view p{opacity:1;transform:translateY(0);}
+
+/* =========================================================
+   CIRCULARHUB — TYPOGRAPHY + DEVICE FIT OVERRIDES
+   Keeps the existing purple dark visual system and components.
+========================================================= */
+body,
+button,
+input,
+select,
+textarea{
+  font-family:"Plus Jakarta Sans",Inter,Manrope,sans-serif;
+}
+
+h1,h2,h3,h4,
+.brand,
+.productCategory,
+.deviceTab,
+.primaryButton,
+.secondaryButton,
+.outlineButton,
+.listButton,
+.modalEyebrow,
+.eyebrow{
+  font-family:"Space Grotesk",Plus Jakarta Sans,Inter,sans-serif;
+}
+
+h1,h2,h3,h4{
+  text-wrap:balance;
+}
+
+p,
+.productDescription,
+.formIntro,
+.field span,
+.field input,
+.field select,
+.field textarea,
+.footer,
+.adminPendingInfo span{
+  overflow-wrap:anywhere;
+}
+
+/* Keep content inside the viewport on every device. */
+.section,
+.navInner,
+.footer,
+.statsSection{
+  max-width:100%;
+}
+
+img{
+  max-width:100%;
+}
+
+.modalOverlay{
+  padding:clamp(12px,3vw,28px);
+}
+
+.modalBox{
+  width:min(920px,100%);
+  max-height:min(88vh,900px);
+  overflow:auto;
+}
+
+.adminReviewPanel{
+  margin-top:24px;
+  padding:20px;
+  border:1px solid rgba(192,132,252,.20);
+  border-radius:18px;
+  background:rgba(168,85,247,.045);
+}
+
+.adminReviewPanel h3{
+  margin-top:5px;
+}
+
+.adminPendingList{
+  display:grid;
+  gap:12px;
+  margin-top:16px;
+}
+
+.adminPendingCard{
+  display:grid;
+  grid-template-columns:76px minmax(0,1fr) auto;
+  gap:14px;
+  align-items:center;
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius:15px;
+  background:rgba(255,255,255,.018);
+}
+
+.adminPendingImage{
+  width:76px;
+  height:76px;
+  overflow:hidden;
+  border-radius:12px;
+  background:var(--surface2);
+}
+
+.adminPendingImage img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.adminPendingInfo{
+  min-width:0;
+  display:grid;
+  gap:4px;
+}
+
+.adminPendingInfo strong{
+  font-size:14px;
+  overflow-wrap:anywhere;
+}
+
+.adminPendingInfo span{
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.45;
+}
+
+.adminPendingInfo b{
+  color:var(--purpleLight);
+  font-size:13px;
+}
+
+.adminPendingActions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  justify-content:flex-end;
+}
+
+.adminPendingActions .primaryButton,
+.adminPendingActions .secondaryButton{
+  min-height:38px;
+  padding:0 12px;
+}
+
+/* Tablet */
+@media (max-width:1024px){
+  .navInner{width:94%;gap:9px}
+  .desktopNav button{padding-inline:7px}
+  .hero{gap:28px}
+  .section{width:92%;}
+  .productGrid{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .modalBox{width:min(860px,100%);}
+}
+
+/* Small tablets / large phones */
+@media (max-width:900px){
+  .navInner{width:94%;}
+  .hero{padding-top:48px;padding-bottom:52px;}
+  .heroContent{width:min(700px,100%);}
+  .heroText{max-width:620px;margin-left:auto;margin-right:auto;}
+  .section{padding-top:62px;padding-bottom:62px;}
+  .sectionHeader p{max-width:680px;}
+  .productGrid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .productCard{min-width:0;}
+  .productBody{min-width:0;}
+  .productBody h3,
+  .productDescription{overflow-wrap:anywhere;}
+  .deviceTabs{overflow-x:auto;scrollbar-width:none;padding-bottom:4px;}
+  .deviceTabs::-webkit-scrollbar{display:none;}
+  .deviceTab{flex:0 0 auto;white-space:nowrap;}
+  .modalProductContent{min-width:0;}
+  .formGrid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .field{min-width:0;}
+  .adminPendingCard{grid-template-columns:68px minmax(0,1fr);}
+  .adminPendingImage{width:68px;height:68px;}
+  .adminPendingActions{grid-column:2;justify-content:flex-start;}
+}
+
+/* Phones */
+@media (max-width:600px){
+  html{scroll-padding-top:78px;}
+  body{min-width:320px;}
+  .navbar{height:70px;}
+  .navInner{width:calc(100% - 22px);gap:7px;}
+  .brand{font-size:15px;gap:7px;min-width:0;}
+  .brandIcon{width:38px;height:38px;flex:0 0 38px;}
+  .navActions{gap:5px;min-width:0;}
+  .iconButton,.mobileMenuButton,.avatar{width:38px;height:38px;flex:0 0 38px;}
+  .profileName,.listButton{display:none;}
+  .section{width:calc(100% - 28px);padding:54px 0;}
+  .hero{padding-top:42px;padding-bottom:42px;}
+  h1{font-size:clamp(38px,11vw,48px);line-height:1.02;}
+  h2{font-size:clamp(30px,8.5vw,40px);line-height:1.06;}
+  h3{font-size:18px;}
+  .heroText{font-size:14px;line-height:1.65;}
+  .heroButtons{width:100%;}
+  .heroButtons > *{width:100%;}
+  .trustRow{gap:9px 14px;font-size:10px;}
+  .orbitArea{width:min(92vw,380px);}
+  .productGrid{grid-template-columns:1fr;}
+  .statsSection{width:calc(100% - 28px);grid-template-columns:1fr 1fr;}
+  .formGrid{grid-template-columns:1fr;}
+  .detailGrid{grid-template-columns:1fr 1fr;}
+  .modalBox{padding:18px;max-height:90vh;border-radius:18px;}
+  .modalProductImage img{height:230px;}
+  .modalButtons{flex-direction:column;}
+  .modalButtons > *{width:100%;}
+  .footer{width:calc(100% - 28px);}
+  .footerBrand{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:10px;}
+  .footerBrand p{grid-column:1/-1;margin-top:10px;}
+  .footerLinks{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}
+  .adminStats{grid-template-columns:1fr 1fr;}
+  .adminPendingCard{grid-template-columns:58px minmax(0,1fr);}
+  .adminPendingImage{width:58px;height:58px;}
+  .adminPendingActions .primaryButton,
+  .adminPendingActions .secondaryButton{flex:1;}
+  .adminTable{overflow-x:auto;}
+  .adminTableHeader,.adminTableRow{min-width:600px;}
+}
+
+/* Very small phones: 320–380px */
+@media (max-width:380px){
+  .brand{font-size:14px;}
+  .brandIcon{width:36px;height:36px;flex-basis:36px;}
+  .iconButton,.mobileMenuButton,.avatar{width:36px;height:36px;flex-basis:36px;}
+  .navActions{gap:4px;}
+  .section{width:calc(100% - 22px);}
+  .statsSection{width:calc(100% - 22px);grid-template-columns:1fr;}
+  .detailGrid{grid-template-columns:1fr;}
+  .orbitArea{width:300px;}
+  .orbitNode{transform:scale(.88);}
+  .footerLinks{grid-template-columns:1fr;}
+}
