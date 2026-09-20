@@ -3090,7 +3090,14 @@ function App() {
                       sessionStorage.setItem("circularhub_admin_token", result.token);
                       setAdminToken(result.token);
                       setAdminLoggedIn(true);
+                      setModal("admin");
                       notify("Admin login successful. Dashboard unlocked.");
+                      window.setTimeout(() => {
+                        document.getElementById("dashboard")?.scrollIntoView({
+                          behavior: "smooth",
+                          block: "start",
+                        });
+                      }, 80);
                     } catch (error) {
                       notify(error instanceof Error ? error.message : "Invalid administrator credentials.");
                     } finally {
