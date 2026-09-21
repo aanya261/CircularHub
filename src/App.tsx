@@ -37,6 +37,7 @@ import {
   fetchApprovedListings,
   fetchPendingListings,
   reviewListing,
+  deleteListing,
   submitActivity,
   submitListing,
 } from "./backend";
@@ -138,6 +139,7 @@ function App() {
   const [adminToken, setAdminToken] = useState(() => sessionStorage.getItem("circularhub_admin_token") || "");
   const [approvedListings, setApprovedListings] = useState<Product[]>([]);
   const [pendingListings, setPendingListings] = useState<any[]>([]);
+  const [approvedAdminListings, setApprovedAdminListings] = useState<any[]>([]);
   const [backendActivities, setBackendActivities] = useState<ActivityRecord[]>([]);
 
   // Warm the Vercel admin function in the background so the first real
@@ -211,9 +213,15 @@ function App() {
 
   useEffect(() => {
     if (!adminLoggedIn || !adminToken) return;
-    Promise.all([fetchPendingListings(adminToken), fetchAdminActivities(adminToken)])
-      .then(([listings, backendHistory]) => {
+
+    Promise.all([
+      fetchPendingListings(adminToken, "pending"),
+      fetchPendingListings(adminToken, "approved"),
+      fetchAdminActivities(adminToken),
+    ])
+      .then(([listings, approved, backendHistory]) => {
         setPendingListings(listings);
+        setApprovedAdminListings(approved);
         setBackendActivities(backendHistory.map((item) => ({
           trackingId: item.trackingId,
           type: item.type,
@@ -257,6 +265,10 @@ function App() {
         // The static demo catalogue remains available if the database is not configured yet.
       });
   }, []);
+
+  const savedProducts = useMemo(() => {
+    return marketplaceProducts.filter((product) => saved.includes(product.id));
+  }, [marketplaceProducts, saved]);
 
   const filteredProducts = useMemo(() => {
     return marketplaceProducts.filter((product) => {
@@ -580,6 +592,10 @@ function App() {
               Impact
             </button>
 
+            <button onClick={() => scrollTo("favorites")}>
+              Favourites
+            </button>
+
             <button onClick={() => setModal("track")}>
               Track
             </button>
@@ -670,6 +686,10 @@ function App() {
 
             <button onClick={() => scrollTo("impact")}>
               Impact
+            </button>
+
+            <button onClick={() => scrollTo("favorites")}>
+              Favourites
             </button>
 
             <button onClick={() => setModal("track")}>
@@ -1061,6 +1081,154 @@ function App() {
             ))}
 
           </div>
+
+        </section>
+
+
+        {/* ================= FAVOURITES ================= */}
+
+        <section
+          id="favorites"
+          className="section marketplaceSection"
+        >
+
+          <div className="sectionHeader">
+
+            <div>
+
+              <div className="eyebrow">
+                <span />
+                YOUR FAVOURITES
+              </div>
+
+              <h2>
+                Products you
+                <br />
+                want to keep close.
+              </h2>
+
+              <p>
+                Every product you like is saved here so you can
+                easily find it again whenever you are ready.
+              </p>
+
+            </div>
+
+            <button
+              className="outlineButton"
+              onClick={() => scrollTo("explore")}
+            >
+              Explore products
+              <Search size={17} />
+            </button>
+
+          </div>
+
+          {savedProducts.length ? (
+            <div className="productGrid">
+
+              {savedProducts.map((product: Product) => (
+
+                <article
+                  className="productCard"
+                  key={`favorite-${product.id}`}
+                >
+
+                  <div className="productImage">
+
+                    <img
+                      src={product.image || getConditionImage(product.category, product.condition)}
+                      alt={product.name}
+                      onError={(event) => {
+                        const image = event.currentTarget;
+                        const fallback = getConditionImage(product.category, product.condition);
+                        if (image.src !== fallback) image.src = fallback;
+                      }}
+                    />
+
+                    <div className="conditionBadge">
+                      {product.condition}
+                    </div>
+
+                    <button
+                      className="saveButton saved"
+                      aria-label={`Remove ${product.name} from favourites`}
+                      title="Remove from favourites"
+                      onClick={() => toggleSaved(product.id)}
+                    >
+                      <Heart
+                        size={18}
+                        fill="currentColor"
+                      />
+                    </button>
+
+                  </div>
+
+                  <div className="productBody">
+
+                    <div className="productCategory">
+                      {product.category}
+                    </div>
+
+                    <h3>
+                      {product.name}
+                    </h3>
+
+                    <p className="productDescription">
+                      {product.description}
+                    </p>
+
+                    <div className="productMeta">
+                      <span>{product.city}</span>
+                      <span>{product.age}</span>
+                    </div>
+
+                    <div className="productBottom">
+                      <div>
+                        <strong>
+                          ₹{product.price.toLocaleString("en-IN")}
+                        </strong>
+                        <del>
+                          ₹{product.originalPrice.toLocaleString("en-IN")}
+                        </del>
+                      </div>
+
+                      <div className="score">
+                        {product.score}
+                      </div>
+                    </div>
+
+                    <button
+                      className="viewProduct"
+                      onClick={() => setSelectedProduct(product)}
+                    >
+                      View product
+                      <ArrowRight size={16} />
+                    </button>
+
+                  </div>
+
+                </article>
+
+              ))}
+
+            </div>
+          ) : (
+            <div className="trackEmpty">
+              <Heart size={25} />
+              <strong>No favourites yet</strong>
+              <span>Tap the heart on any product you like and it will appear here.</span>
+              <button
+                type="button"
+                className="primaryButton"
+                onClick={() => scrollTo("explore")}
+                style={{ marginTop: 8 }}
+              >
+                Browse marketplace
+                <ArrowRight size={16} />
+              </button>
+            </div>
+          )}
 
         </section>
 
@@ -3039,11 +3207,14 @@ function App() {
                 <AdminDashboard
                   activities={[...backendActivities, ...activities].slice(0, 100)}
                   pendingListings={pendingListings}
+                  approvedAdminListings={approvedAdminListings}
                   onApprove={async (id, listing) => {
                     try {
                       await reviewListing(adminToken, id, "approved");
                       const approved = await fetchApprovedListings();
                       setApprovedListings(approved);
+                      const approvedForAdmin = await fetchPendingListings(adminToken, "approved");
+                      setApprovedAdminListings(approvedForAdmin);
                       setActivities((prev) => prev.map((activity) =>
                         activity.type === "Sell" && activity.description.toLowerCase().startsWith(`${String(listing.name || "").toLowerCase()} ·`)
                           ? { ...activity, status: "Approved" }
@@ -3070,6 +3241,20 @@ function App() {
                       return true;
                     } catch (error) {
                       notify(error instanceof Error ? error.message : "Unable to reject listing.");
+                      return false;
+                    }
+                  }}
+                  onDelete={async (id, listing) => {
+                    try {
+                      await deleteListing(adminToken, id);
+                      setPendingListings((prev) => prev.filter((item) => String(item.id) !== String(id)));
+                      setApprovedAdminListings((prev) => prev.filter((item) => String(item.id) !== String(id)));
+                      setApprovedListings((prev) => prev.filter((item) => String(item.id) !== String(id)));
+                      addNotification(`Listing "${listing.name}" was deleted by the administrator.`);
+                      notify("Listing deleted successfully.");
+                      return true;
+                    } catch (error) {
+                      notify(error instanceof Error ? error.message : "Unable to delete listing.");
                       return false;
                     }
                   }}
@@ -3727,15 +3912,19 @@ function NotificationsModal({
 function AdminDashboard({
   activities,
   pendingListings,
+  approvedAdminListings,
   onApprove,
   onReject,
+  onDelete,
   onClose,
   onLogout,
 }: {
   activities: ActivityRecord[];
   pendingListings: Array<any>;
+  approvedAdminListings: Array<any>;
   onApprove: (id: string, listing: any) => Promise<boolean>;
   onReject: (id: string, listing: any) => Promise<boolean>;
+  onDelete: (id: string, listing: any) => Promise<boolean>;
   onClose: () => void;
   onLogout: () => void;
 }) {
@@ -3757,6 +3946,27 @@ function AdminDashboard({
     if (success) {
       setDecisions((prev) => ({ ...prev, [id]: "rejected" }));
     }
+  };
+
+  const remove = async (listing: any) => {
+    const id = String(listing.id);
+    if (decisions[id]) return;
+
+    const confirmed = window.confirm(
+      `Delete this listing from ${listing.seller || "this user"}?`
+    );
+
+    if (!confirmed) return;
+    await onDelete(id, listing);
+  };
+
+  const removeApproved = async (listing: any) => {
+    const confirmed = window.confirm(
+      `Delete "${listing.name}" from the marketplace?`
+    );
+
+    if (!confirmed) return;
+    await onDelete(String(listing.id), listing);
   };
 
   return (
@@ -3854,6 +4064,20 @@ function AdminDashboard({
                     >
                       {isRejected ? "Rejected ✕" : "Reject"}
                     </button>
+
+                    <button
+                      type="button"
+                      className="secondaryButton"
+                      disabled={Boolean(decision)}
+                      onClick={() => void remove(listing)}
+                      style={{
+                        borderColor: "rgba(248,113,113,.55)",
+                        background: "rgba(239,68,68,.10)",
+                        color: "#fca5a5",
+                      }}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               );
@@ -3864,6 +4088,72 @@ function AdminDashboard({
             <Check size={25} />
             <strong>No pending listings</strong>
             <span>New user listings will appear here for review.</span>
+          </div>
+        )}
+      </div>
+
+      <div className="adminReviewPanel" style={{ marginTop: 24 }}>
+        <div className="modalEyebrow">APPROVED MARKETPLACE LISTINGS</div>
+        <h3>Live products</h3>
+        <p className="formIntro">
+          These products are currently visible on the buying page. Delete any product that should no longer be available.
+        </p>
+
+        {approvedAdminListings.length ? (
+          <div className="adminPendingList">
+            {approvedAdminListings.map((listing) => (
+              <div className="adminPendingCard" key={`approved-${listing.id}`}>
+                <div className="adminPendingImage">
+                  <img
+                    src={listing.image || getConditionImage(listing.category, listing.condition)}
+                    alt={listing.name}
+                  />
+                </div>
+
+                <div className="adminPendingInfo">
+                  <strong>{listing.name}</strong>
+                  <span>{listing.brand} · {listing.category} · {listing.condition}</span>
+                  <span>{listing.seller} · {listing.city}</span>
+                  <b>₹{Number(listing.price || 0).toLocaleString("en-IN")}</b>
+                  <span style={{
+                    display: "inline-flex",
+                    width: "fit-content",
+                    marginTop: 6,
+                    padding: "5px 9px",
+                    borderRadius: 999,
+                    border: "1px solid rgba(52,211,153,.35)",
+                    background: "rgba(16,185,129,.10)",
+                    color: "#6ee7b7",
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: ".04em",
+                  }}>
+                    APPROVED · LIVE
+                  </span>
+                </div>
+
+                <div className="adminPendingActions">
+                  <button
+                    type="button"
+                    className="secondaryButton"
+                    onClick={() => void removeApproved(listing)}
+                    style={{
+                      borderColor: "rgba(248,113,113,.55)",
+                      background: "rgba(239,68,68,.10)",
+                      color: "#fca5a5",
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="trackEmpty">
+            <Check size={25} />
+            <strong>No approved marketplace listings</strong>
+            <span>Approved products will appear here while they are live.</span>
           </div>
         )}
       </div>
