@@ -967,6 +967,52 @@ function App() {
           </div>
 
 
+          {filteredProducts.length === 0 ? (
+
+            <div
+              className="marketplaceEmptyState"
+              role="status"
+              aria-live="polite"
+            >
+
+              <div className="marketplaceEmptyIcon">
+                <Package size={24} />
+              </div>
+
+              <div className="marketplaceEmptyContent">
+
+                <span className="marketplaceEmptyEyebrow">
+                  COMING SOON
+                </span>
+
+                <h3>
+                  {searchText
+                    ? `No products found for “${searchText}”`
+                    : activeTab === "All"
+                      ? "More products are coming soon"
+                      : `No ${activeTab} products yet`}
+                </h3>
+
+                <p>
+                  {searchText
+                    ? "Try another search or be the first to list an item in this category."
+                    : "Be the first to give a product a second life on CircularHub."}
+                </p>
+
+                <button
+                  className="primaryButton marketplaceEmptyButton"
+                  onClick={() => setModal("sell")}
+                >
+                  List an item
+                  <ArrowRight size={16} />
+                </button>
+
+              </div>
+
+            </div>
+
+          ) : (
+
           <div className="productGrid">
 
             {filteredProducts.map((product: Product) => (
@@ -1081,6 +1127,8 @@ function App() {
             ))}
 
           </div>
+
+          )}
 
         </section>
 
@@ -2828,8 +2876,8 @@ function App() {
                   </strong>
 
                   <span>
-                    Choose your device, issue, preferred
-                    date and pickup/drop-off option.
+                     Choose your device, issue, preferred
+                     date and pickup/drop-off option.
                   </span>
 
                 </div>
