@@ -123,7 +123,7 @@ export const products: Product[] = [
   {
     id: 8,
     name: "Nintendo Switch OLED",
-    category: "Gaming",
+    category: "Gaming Console",
     brand: "Nintendo",
     price: 23900,
     originalPrice: 34990,
