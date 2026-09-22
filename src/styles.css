@@ -2062,3 +2062,151 @@ img{
   .orbitNode{transform:scale(.88);}
   .footerLinks{grid-template-columns:1fr;}
 }
+
+/* =========================================================
+   CIRCULARHUB — FAST RECYCLE + NUMBER BOX ANIMATION ADD-ON
+   Only replaces the added recycle/stat animation layer.
+   All original CSS above remains unchanged.
+   Lightweight: transform + opacity + border/background only.
+   ========================================================= */
+
+.recycleHero{
+  position:relative;
+  overflow:hidden;
+  transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease;
+}
+.recycleHero::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  border-radius:inherit;
+  opacity:0;
+  background:linear-gradient(110deg,transparent 35%,rgba(216,180,254,.08) 50%,transparent 65%);
+  transform:translate3d(-45%,0,0);
+  transition:transform .45s ease,opacity .2s ease;
+  will-change:transform,opacity;
+}
+.recycleHero:hover{
+  transform:translate3d(0,-4px,0);
+  border-color:var(--borderStrong);
+  box-shadow:0 12px 34px rgba(168,85,247,.12);
+}
+.recycleHero:hover::before{opacity:1;transform:translate3d(45%,0,0)}
+
+.recycleVisual{
+  position:relative;
+  overflow:hidden;
+  transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease;
+}
+.recycleVisual::before{
+  content:"";
+  position:absolute;
+  inset:18%;
+  border-radius:50%;
+  pointer-events:none;
+  opacity:.42;
+  background:rgba(168,85,247,.10);
+  transform:scale(.96);
+  transition:transform .3s ease,opacity .3s ease;
+  will-change:transform,opacity;
+}
+.recycleVisual:hover{
+  transform:translate3d(0,-3px,0);
+  border-color:var(--borderStrong);
+  box-shadow:0 12px 32px rgba(168,85,247,.10);
+}
+.recycleVisual:hover::before{transform:scale(1.06);opacity:.7}
+
+.recyclerCard{
+  position:relative;
+  overflow:hidden;
+  transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease,background-color .22s ease;
+}
+.recyclerCard::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+  background:linear-gradient(110deg,transparent 38%,rgba(216,180,254,.07) 50%,transparent 62%);
+  transform:translate3d(-40%,0,0);
+  transition:transform .45s ease,opacity .18s ease;
+  will-change:transform,opacity;
+}
+.recyclerCard:hover{
+  transform:translate3d(0,-5px,0);
+  border-color:var(--borderStrong);
+  background:var(--surface2);
+  box-shadow:0 12px 34px rgba(168,85,247,.11);
+}
+.recyclerCard:hover::before{opacity:1;transform:translate3d(40%,0,0)}
+.recyclerCard h3,.recyclerCard p{transition:transform .18s ease,color .18s ease}
+.recyclerCard:hover h3{transform:translate3d(2px,0,0);color:#fff}
+.recyclerCard:hover p{color:var(--text2)}
+
+.recyclerCard > svg:first-child,
+.recyclerCard .icon,
+.recyclerCard > div:first-child svg{transition:transform .2s ease}
+.recyclerCard:hover > svg:first-child,
+.recyclerCard:hover .icon,
+.recyclerCard:hover > div:first-child svg{transform:translate3d(0,-2px,0) scale(1.05)}
+
+.impactStats > div,
+.statCard{
+  position:relative;
+  overflow:hidden;
+  transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease,background-color .22s ease;
+}
+.impactStats > div::before,
+.statCard::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  opacity:0;
+  background:linear-gradient(110deg,transparent 40%,rgba(216,180,254,.07) 50%,transparent 60%);
+  transform:translate3d(-35%,0,0);
+  transition:transform .4s ease,opacity .18s ease;
+  will-change:transform,opacity;
+}
+.impactStats > div:hover,
+.statCard:hover{
+  transform:translate3d(0,-5px,0);
+  border-color:var(--borderStrong);
+  background:var(--surface2);
+  box-shadow:0 12px 32px rgba(168,85,247,.10);
+}
+.impactStats > div:hover::before,
+.statCard:hover::before{opacity:1;transform:translate3d(35%,0,0)}
+.impactStats > div strong,
+.statCard strong{position:relative;transition:transform .18s ease,text-shadow .18s ease}
+.impactStats > div:hover strong,
+.statCard:hover strong{
+  transform:translate3d(0,-2px,0);
+  text-shadow:0 0 12px rgba(168,85,247,.22);
+}
+.impactStats > div span,
+.statCard span{position:relative;transition:color .18s ease}
+.impactStats > div:hover span,
+.statCard:hover span{color:var(--text2)}
+
+@media (hover:none){
+  .recycleHero:hover,.recycleVisual:hover,.recyclerCard:hover,
+  .impactStats > div:hover,.statCard:hover{transform:none;box-shadow:none}
+  .recycleHero:hover::before,.recyclerCard:hover::before,
+  .impactStats > div:hover::before,.statCard:hover::before{opacity:0}
+  .recycleVisual:hover::before{transform:scale(.96);opacity:.42}
+  .recyclerCard:hover h3,.impactStats > div:hover strong,.statCard:hover strong{transform:none}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .recycleHero,.recycleVisual,.recyclerCard,.impactStats > div,.statCard,
+  .recycleHero::before,.recycleVisual::before,.recyclerCard::before,
+  .impactStats > div::before,.statCard::before,.recyclerCard h3,.recyclerCard p,
+  .impactStats > div strong,.statCard strong,.impactStats > div span,.statCard span{
+    transition:none !important;
+    transform:none !important;
+  }
+  .recycleHero::before,.recyclerCard::before,.impactStats > div::before,.statCard::before{display:none}
+}
